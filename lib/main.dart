@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'screens/splash_screen.dart';
 import 'services/progress_service.dart';
 import 'theme/app_theme.dart';
@@ -7,6 +8,9 @@ import 'constants/app_constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize AdMob
+  await MobileAds.instance.initialize();
   
   // Initialize progress service
   await ProgressService.initializeProgress();

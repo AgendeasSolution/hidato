@@ -36,7 +36,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   int currentSolutionIndex = 0;
   bool solutionButtonUsed = false;
   int hintCount = 0;
-  int maxHints = 0;
+  int maxHints = 7; // Fixed limit of 7 hints per game
   int currentLevel = 1;
   int currentPuzzleIndex = 0;
   late Set<int> completedLevels;
@@ -44,6 +44,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   // Services
   late final GameValidator _validator;
   late final HintService _hintService;
+  late final InterstitialAdService _interstitialAdService;
+  late final RewardedAdService _rewardedAdService;
 
   // UI state
   bool showStartPopup = true;
@@ -56,6 +58,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   bool isFillingSolution = false;
   String hintMessage = '';
   Position? hintPosition;
+  bool isLoadingHintAd = false;
+  bool isLoadingSolutionAd = false;
   late AnimationController _confettiController;
   late AnimationController _bounceController;
 
@@ -70,9 +74,48 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _startGame();
   }
 
-  void _initializeServices() {
+  void _initializeServices() async {
     _validator = GameValidator();
     _hintService = HintService(GameSolver());
+    _interstitialAdService = InterstitialAdService.instance;
+    _rewardedAdService = RewardedAdService.instance;
+    
+    // Preload ads for better user experience
+    _interstitialAdService.preloadAd();
+    
+    // Initialize rewarded ads and wait for them to be ready
+    await _initializeRewardedAds();
+  }
+
+  Future<void> _initializeRewardedAds() async {
+    try {
+      // Load the first rewarded ad
+      await _rewardedAdService.loadAd();
+      print('Rewarded ad initialized successfully');
+    } catch (e) {
+      print('Failed to initialize rewarded ad: $e');
+    }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        backgroundColor: Colors.red[600],
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
   }
 
   void _initializeAnimations() {
@@ -267,26 +310,29 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           Expanded(
             child: _buildControlButton(
               text: 'Hint',
-              subtitle: '${maxHints - hintCount}/$maxHints',
+              subtitle: isLoadingHintAd ? 'Loading...' : (hintCount >= maxHints ? 'No More' : 'Watch Ad • ${maxHints - hintCount}/$maxHints'),
               icon: Icons.lightbulb_outline,
-              onTap: hintCount >= maxHints ? null : _handleHint,
+              onTap: (hintCount >= maxHints || isLoadingHintAd) ? null : _handleHint,
               color: AppColors.buttonPurple,
-              isDisabled: hintCount >= maxHints,
+              isDisabled: hintCount >= maxHints || isLoadingHintAd,
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: _buildControlButton(
               text: 'Solution',
+              subtitle: isLoadingSolutionAd ? 'Loading...' : 'Watch Ad',
               icon: Icons.visibility,
-              onTap: _handleSolution,
+              onTap: isLoadingSolutionAd ? null : _handleSolution,
               color: AppColors.success,
+              isDisabled: isLoadingSolutionAd,
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: _buildControlButton(
               text: 'Reset',
+              subtitle: 'Ad',
               icon: Icons.refresh,
               onTap: _handleReset,
               color: AppColors.buttonOrange,
@@ -319,7 +365,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       onTap: isDisabled ? null : onTap,
       child: Container(
         height: 48,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         decoration: BoxDecoration(
           color: isDisabled ? Colors.grey[300] : color,
           borderRadius: BorderRadius.circular(12),
@@ -331,7 +377,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             ),
           ],
         ),
-        child: Row(
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -339,42 +385,34 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               Icon(
                 icon,
                 color: isDisabled ? Colors.grey[500] : Colors.white,
-                size: 18,
+                size: 14,
               ),
-              const SizedBox(width: 6),
+              const SizedBox(height: 1),
             ],
-            Flexible(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    text,
-                    style: TextStyle(
-                      color: isDisabled ? Colors.grey[500] : Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (subtitle != null) ...[
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: isDisabled ? Colors.grey[400] : Colors.white.withOpacity(0.8),
-                        fontWeight: FontWeight.w500,
-                        fontSize: 9,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
+            Text(
+              text,
+              style: TextStyle(
+                color: isDisabled ? Colors.grey[500] : Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 9,
               ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
+            if (subtitle != null) ...[
+              Text(
+                subtitle,
+                style: TextStyle(
+                  color: isDisabled ? Colors.grey[400] : Colors.white.withOpacity(0.8),
+                  fontWeight: FontWeight.w500,
+                  fontSize: 6,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ],
         ),
       ),
@@ -622,6 +660,19 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _handleReset() {
+    // Show interstitial ad with 50% probability before resetting
+    _interstitialAdService.showAdWithCustomProbability(0.5, onAdDismissed: () {
+      // This callback runs after the ad is dismissed
+      _performReset();
+    }).then((adShown) {
+      // If ad wasn't shown (50% chance or ad not ready), reset immediately
+      if (!adShown) {
+        _performReset();
+      }
+    });
+  }
+
+  void _performReset() {
     setState(() {
       isSolved = false;
       solutionButtonUsed = false;
@@ -629,6 +680,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       currentBoard = GameUtils.deepCopyBoard(originalPuzzleBoard);
       stateHistory = [];
       hintCount = 0;
+      maxHints = (originalPuzzleBoard.length * originalPuzzleBoard[0].length / AppConstants.maxHintsMultiplier).ceil();
       nextNumber = 1;
       lastPlacedPos = _validator.findNumberPosition(currentBoard, 1);
       if (lastPlacedPos != null) {
@@ -644,6 +696,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       isSolved = false;
       solutionButtonUsed = false;
       isFillingSolution = false;
+      hintCount = 0;
       showGameOverPopup = false;
       showLevelCompletionPopup = false;
       showAllLevelsCompletedPopup = false;
@@ -653,8 +706,54 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
 
   void _handleSolution() async {
-    if (currentPuzzleIndex == -1) return;
+    if (currentPuzzleIndex == -1 || isLoadingSolutionAd) return;
 
+    setState(() {
+      isLoadingSolutionAd = true;
+      loadingMessage = 'Loading Ad...';
+      showLoadingPopup = true;
+    });
+
+    try {
+      // Show rewarded ad - service will handle loading if needed
+      final adShown = await _rewardedAdService.showAdAlways(
+        onRewardEarned: () {
+          // User earned reward - just mark that reward was earned
+          // Don't apply solution yet, wait for ad to be dismissed
+          print('User earned reward for solution');
+        },
+        onAdDismissed: () {
+          // Ad was dismissed - check if reward was earned
+          if (_rewardedAdService.wasRewardEarned) {
+            // User watched the full ad and earned reward - now give them the solution
+            _giveSolution();
+          } else {
+            // User didn't watch the full ad - show message
+            _showSnackBar('Please watch the full ad to get the solution!');
+          }
+        },
+      );
+
+      // Hide loading popup
+      setState(() {
+        showLoadingPopup = false;
+        isLoadingSolutionAd = false;
+      });
+
+      // If ad couldn't be shown, show error message instead of giving solution
+      if (!adShown) {
+        _showSnackBar('Unable to load ad. Please try again later.');
+      }
+    } catch (e) {
+      setState(() {
+        showLoadingPopup = false;
+        isLoadingSolutionAd = false;
+      });
+      _showSnackBar('Error loading ad: $e');
+    }
+  }
+
+  void _giveSolution() async {
     // Check if solutions are already cached
     List<List<List<int>>>? cachedSolutions = SolutionCache.getSolutions(originalPuzzleBoard);
     
@@ -778,8 +877,54 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _handleHint() async {
-    if (isSolved || nextNumber > endNum || hintCount >= maxHints) return;
+    if (isSolved || nextNumber > endNum || isLoadingHintAd) return;
 
+    setState(() {
+      isLoadingHintAd = true;
+      loadingMessage = 'Loading Ad...';
+      showLoadingPopup = true;
+    });
+
+    try {
+      // Show rewarded ad - service will handle loading if needed
+      final adShown = await _rewardedAdService.showAdAlways(
+        onRewardEarned: () {
+          // User earned reward - just mark that reward was earned
+          // Don't apply hint yet, wait for ad to be dismissed
+          print('User earned reward for hint');
+        },
+        onAdDismissed: () {
+          // Ad was dismissed - check if reward was earned
+          if (_rewardedAdService.wasRewardEarned) {
+            // User watched the full ad and earned reward - now give them the hint
+            _giveHint();
+          } else {
+            // User didn't watch the full ad - show message
+            _showSnackBar('Please watch the full ad to get your hint!');
+          }
+        },
+      );
+
+      // Hide loading popup
+      setState(() {
+        showLoadingPopup = false;
+        isLoadingHintAd = false;
+      });
+
+      // If ad couldn't be shown, show error message instead of giving hint
+      if (!adShown) {
+        _showSnackBar('Unable to load ad. Please try again later.');
+      }
+    } catch (e) {
+      setState(() {
+        showLoadingPopup = false;
+        isLoadingHintAd = false;
+      });
+      _showSnackBar('Error loading ad: $e');
+    }
+  }
+
+  void _giveHint() async {
     // Check if solutions are already cached
     bool solutionsCached = SolutionCache.hasSolutions(originalPuzzleBoard);
     
@@ -794,6 +939,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     setState(() {
       hintCount++;
     });
+
 
     // Add a small delay to ensure popup is visible (only if showing popup)
     if (!solutionsCached) {
@@ -914,8 +1060,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     final gridSize = puzzleData.totalCells;
     startNum = 1;
     endNum = gridSize;
-    maxHints = (gridSize / AppConstants.maxHintsMultiplier).ceil();
     hintCount = 0;
+    maxHints = (gridSize / AppConstants.maxHintsMultiplier).ceil();
     nextNumber = 1;
     lastPlacedPos = _validator.findNumberPosition(currentBoard, 1);
 
