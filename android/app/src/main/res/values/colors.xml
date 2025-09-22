@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Splash screen colors matching Flutter app -->
+    <color name="splash_background">#F5F5F5</color>
+    <color name="splash_primary">#4F46E5</color>
+    <color name="splash_text_muted">#999999</color>
+    <color name="splash_credit_primary">#6366F1</color>
+</resources>
