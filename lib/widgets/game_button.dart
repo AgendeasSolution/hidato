@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../constants/app_colors.dart';
+import '../services/audio_service.dart';
 
 
 /// A larger action button for important actions
@@ -22,7 +22,10 @@ class ActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        AudioService.instance.playClickSound();
+        onTap();
+      },
       child: Container(
         width: width,
         height: height,

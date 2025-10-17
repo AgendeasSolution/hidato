@@ -22,10 +22,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   
   Set<int> completedLevels = {};
   Set<int> unlockedLevels = {1}; // Level 1 unlocked by default
+  late final AudioService _audioService;
 
   @override
   void initState() {
     super.initState();
+    _audioService = AudioService.instance;
     _initializeAnimations();
     _startAnimations();
     _loadProgress();
@@ -104,6 +106,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
                 child: Column(
                   children: [
+                    const SizedBox(height: 40), // Space for the sound button
                     _buildGameLogo(),
                     const SizedBox(height: 16),
                     _buildLevelsGrid(),
@@ -111,6 +114,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ],
                 ),
               ),
+            ),
+            // Sound button positioned at top-right corner
+            Positioned(
+              top: 8,
+              right: 16,
+              child: const SoundToggle(),
             ),
             // Independent ad banner overlay at bottom
             AdBanner(),
@@ -207,7 +216,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final isLocked = !isUnlocked;
     
     return GestureDetector(
-      onTap: isLocked ? null : () => _startLevel(level),
+      onTap: isLocked ? null : () {
+        _audioService.playClickSound();
+        _startLevel(level);
+      },
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -303,7 +315,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return SizedBox(
       height: screenWidth * 0.12,
       child: ElevatedButton(
-        onPressed: _showHowToPlay,
+        onPressed: () {
+          _audioService.playClickSound();
+          _showHowToPlay();
+        },
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.secondary,
           foregroundColor: Colors.white,
@@ -396,7 +411,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () {
+              _audioService.playClickSound();
+              Navigator.of(context).pop();
+            },
             child: const Text(
               'OK',
               style: TextStyle(
@@ -478,7 +496,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             width: double.infinity,
             margin: const EdgeInsets.only(top: 4),
             child: ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () {
+                _audioService.playClickSound();
+                Navigator.of(context).pop();
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,

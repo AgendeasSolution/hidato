@@ -4,12 +4,13 @@ import '../constants/app_colors.dart';
 import '../models/position.dart';
 
 /// A single cell in the game board
-class GameCell extends StatelessWidget {
+class GameCell extends StatefulWidget {
   final int value;
   final bool isClue;
   final bool isLastPlaced;
   final bool isHintPosition;
   final bool isEmpty;
+  final bool isError;
   final double size;
   final double fontSize;
   final VoidCallback? onTap;
@@ -21,10 +22,57 @@ class GameCell extends StatelessWidget {
     required this.isLastPlaced,
     required this.isHintPosition,
     required this.isEmpty,
+    this.isError = false,
     required this.size,
     required this.fontSize,
     this.onTap,
   });
+
+  @override
+  State<GameCell> createState() => _GameCellState();
+}
+
+class _GameCellState extends State<GameCell>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _shakeController;
+  late Animation<double> _shakeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _shakeController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+    _shakeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _shakeController,
+      curve: Curves.elasticIn,
+    ));
+  }
+
+  @override
+  void dispose() {
+    _shakeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(GameCell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Trigger shake animation when error state changes to true
+    if (widget.isError && !oldWidget.isError) {
+      _triggerShakeAnimation();
+    }
+  }
+
+  void _triggerShakeAnimation() {
+    _shakeController.forward().then((_) {
+      _shakeController.reverse();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,34 +80,45 @@ class GameCell extends StatelessWidget {
     final actualFontSize = _getResponsiveFontSize(context);
 
     return GestureDetector(
-      onTap: isEmpty ? onTap : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          gradient: colors.gradient,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: colors.borderColor,
-            width: colors.borderWidth,
-          ),
-          boxShadow: _getBoxShadow(),
-        ),
-        child: Center(
-          child: value == 0
-              ? const SizedBox.shrink()
-              : Text(
-                  value.toString(),
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: actualFontSize,
-                    fontWeight: FontWeight.w700,
-                    color: colors.textColor,
-                  ),
-                  textAlign: TextAlign.center,
+      onTap: widget.isEmpty ? widget.onTap : null,
+      child: AnimatedBuilder(
+        animation: _shakeAnimation,
+        builder: (context, child) {
+          return Transform.translate(
+            offset: Offset(
+              _shakeAnimation.value * 5 * math.sin(_shakeAnimation.value * math.pi * 4),
+              0,
+            ),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: widget.size,
+              height: widget.size,
+              decoration: BoxDecoration(
+                gradient: colors.gradient,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: colors.borderColor,
+                  width: colors.borderWidth,
                 ),
-        ),
+                boxShadow: _getBoxShadow(),
+              ),
+              child: Center(
+                child: widget.value == 0
+                    ? const SizedBox.shrink()
+                    : Text(
+                        widget.value.toString(),
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: actualFontSize,
+                          fontWeight: FontWeight.w700,
+                          color: colors.textColor,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -76,7 +135,19 @@ class GameCell extends StatelessWidget {
   }
 
   _CellColors _getCellColors() {
-    if (isHintPosition) {
+    if (widget.isError) {
+      // Error state (red theme) - matches CSS specification
+      return _CellColors(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.cellErrorBg1, AppColors.cellErrorBg2],
+        ),
+        textColor: AppColors.cellErrorText,
+        borderColor: AppColors.cellErrorBorder,
+        borderWidth: 2,
+      );
+    } else if (widget.isHintPosition) {
       // Hint highlight (yellow theme)
       return _CellColors(
         gradient: const LinearGradient(
@@ -88,7 +159,7 @@ class GameCell extends StatelessWidget {
         borderColor: AppColors.cellHintBorder,
         borderWidth: 3,
       );
-    } else if (isClue) {
+    } else if (widget.isClue) {
       // Clue numbers (gray theme)
       return _CellColors(
         gradient: const LinearGradient(
@@ -100,7 +171,7 @@ class GameCell extends StatelessWidget {
         borderColor: AppColors.cellClueBorder,
         borderWidth: 1,
       );
-    } else if (isEmpty) {
+    } else if (widget.isEmpty) {
       // Empty cells - white background
       return _CellColors(
         gradient: const LinearGradient(
@@ -122,13 +193,22 @@ class GameCell extends StatelessWidget {
         ),
         textColor: AppColors.cellUserText,
         borderColor: AppColors.cellUserBorder,
-        borderWidth: isLastPlaced ? 3 : 1,
+        borderWidth: widget.isLastPlaced ? 3 : 1,
       );
     }
   }
 
   List<BoxShadow>? _getBoxShadow() {
-    if (isLastPlaced) {
+    if (widget.isError) {
+      // Error state shadow
+      return [
+        BoxShadow(
+          color: AppColors.cellErrorBorder.withOpacity(0.3),
+          blurRadius: 12,
+          offset: const Offset(0, 4),
+        ),
+      ];
+    } else if (widget.isLastPlaced) {
       // Highlight state
       return [
         BoxShadow(
@@ -137,7 +217,7 @@ class GameCell extends StatelessWidget {
           offset: const Offset(0, 4),
         ),
       ];
-    } else if (isHintPosition) {
+    } else if (widget.isHintPosition) {
       // Hint highlight
       return [
         BoxShadow(

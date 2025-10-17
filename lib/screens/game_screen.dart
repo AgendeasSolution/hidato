@@ -46,6 +46,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   late final HintService _hintService;
   late final InterstitialAdService _interstitialAdService;
   late final RewardedAdService _rewardedAdService;
+  late final AudioService _audioService;
 
   // UI state
   bool showStartPopup = true;
@@ -58,6 +59,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   bool isFillingSolution = false;
   String hintMessage = '';
   Position? hintPosition;
+  Position? errorPosition;
   bool isLoadingHintAd = false;
   bool isLoadingSolutionAd = false;
   late AnimationController _confettiController;
@@ -79,6 +81,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _hintService = HintService(GameSolver());
     _interstitialAdService = InterstitialAdService.instance;
     _rewardedAdService = RewardedAdService.instance;
+    _audioService = AudioService.instance;
     
     // Preload ads for better user experience
     _interstitialAdService.preloadAd();
@@ -210,7 +213,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   child: _buildLevelText(),
                 ),
               ),
-              const SizedBox(width: 44), // Spacer to balance the layout
+              const SizedBox(width: 44), // Maintain spacing where sound button was
             ],
           ),
           const SizedBox(height: 24),
@@ -222,7 +225,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   Widget _buildBackButton() {
     return GestureDetector(
-      onTap: () => Navigator.of(context).pop(),
+      onTap: () {
+        _audioService.playClickSound();
+        Navigator.of(context).pop();
+      },
       child: Container(
         width: 44,
         height: 44,
@@ -362,7 +368,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     bool isDisabled = false,
   }) {
     return GestureDetector(
-      onTap: isDisabled ? null : onTap,
+      onTap: isDisabled ? null : () {
+        _audioService.playClickSound();
+        onTap?.call();
+      },
       child: Container(
         height: 48,
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -531,6 +540,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     final isClue = originalPuzzleBoard[row][col] != 0;
     final isLastPlaced = lastPlacedPos?.row == row && lastPlacedPos?.col == col;
     final isHintPosition = hintPosition?.row == row && hintPosition?.col == col;
+    final isError = errorPosition?.row == row && errorPosition?.col == col;
     final isEmpty = value == 0;
 
     return GameCell(
@@ -539,6 +549,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       isLastPlaced: isLastPlaced,
       isHintPosition: isHintPosition,
       isEmpty: isEmpty,
+      isError: isError,
       size: size,
       fontSize: fontSize,
       onTap: isEmpty && !isSolved ? () => _handleCellClick(row, col) : null,
@@ -615,7 +626,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   void _handleCellClick(int row, int col) {
     if (currentBoard[row][col] != 0) return;
 
-    final isValidMove = _validator.isValidMove(Position(row, col), lastPlacedPos);
+    // Use enhanced validation with all Hidato rules
+    final isValidMove = _validator.isValidMove(
+      currentBoard,
+      originalPuzzleBoard,
+      Position(row, col),
+      nextNumber,
+      startNum,
+      endNum,
+    );
 
     if (isValidMove) {
       setState(() {
@@ -627,13 +646,30 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         currentBoard[row][col] = nextNumber;
         lastPlacedPos = Position(row, col);
         nextNumber++;
+        errorPosition = null; // Clear any previous error
         _advanceGameState();
       });
 
+      // Play move sound for valid placement
+      _audioService.playMoveSound();
       _checkWinCondition();
     } else {
-      // Show error animation
+      // Show error animation and play block sound
+      setState(() {
+        errorPosition = Position(row, col);
+      });
+      
+      // Clear error position after animation
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          setState(() {
+            errorPosition = null;
+          });
+        }
+      });
+      
       _bounceController.forward().then((_) => _bounceController.reverse());
+      _audioService.playBlockSound();
     }
   }
 
@@ -740,16 +776,18 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         isLoadingSolutionAd = false;
       });
 
-      // If ad couldn't be shown, show error message instead of giving solution
+      // If ad couldn't be shown, give solution anyway to maintain game flow
       if (!adShown) {
-        _showSnackBar('Unable to load ad. Please try again later.');
+        print('Ad failed to load, giving solution anyway to maintain game flow');
+        _giveSolution();
       }
     } catch (e) {
       setState(() {
         showLoadingPopup = false;
         isLoadingSolutionAd = false;
       });
-      _showSnackBar('Error loading ad: $e');
+      print('Error loading ad for solution: $e, giving solution anyway to maintain game flow');
+      _giveSolution();
     }
   }
 
@@ -911,16 +949,18 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         isLoadingHintAd = false;
       });
 
-      // If ad couldn't be shown, show error message instead of giving hint
+      // If ad couldn't be shown, give hint anyway to maintain game flow
       if (!adShown) {
-        _showSnackBar('Unable to load ad. Please try again later.');
+        print('Ad failed to load, giving hint anyway to maintain game flow');
+        _giveHint();
       }
     } catch (e) {
       setState(() {
         showLoadingPopup = false;
         isLoadingHintAd = false;
       });
-      _showSnackBar('Error loading ad: $e');
+      print('Error loading ad for hint: $e, giving hint anyway to maintain game flow');
+      _giveHint();
     }
   }
 
@@ -979,6 +1019,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           hintPosition = pos;
         });
 
+        // Play hint sound
+        _audioService.playHintSound();
         // Advance game state to handle any consecutive numbers
         _advanceGameState();
 
@@ -1030,6 +1072,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       });
 
       if (verification.isCorrect && !solutionButtonUsed) {
+        // Play win sound when puzzle is completed
+        _audioService.playWinSound();
         Future.delayed(const Duration(seconds: 1), () {
           if (currentPuzzleIndex < LevelData.levels.length - 1) {
             setState(() => showLevelCompletionPopup = true);
@@ -1051,6 +1095,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       isSolved = false;
       solutionButtonUsed = false;
       isFillingSolution = false;
+      errorPosition = null;
+      hintPosition = null;
     });
 
     final puzzleData = LevelData.levels[currentPuzzleIndex];

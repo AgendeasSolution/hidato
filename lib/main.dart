@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'screens/splash_screen.dart';
 import 'services/progress_service.dart';
+import 'services/audio_service.dart';
 import 'theme/app_theme.dart';
 import 'constants/app_constants.dart';
 
@@ -14,6 +15,9 @@ void main() async {
   
   // Initialize progress service
   await ProgressService.initializeProgress();
+  
+  // Initialize audio service
+  await AudioService.instance.initialize();
   
   // Force portrait orientation
   await SystemChrome.setPreferredOrientations([
