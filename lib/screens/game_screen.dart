@@ -225,10 +225,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   Widget _buildBackButton() {
     return GestureDetector(
-      onTap: () {
-        _audioService.playClickSound();
-        Navigator.of(context).pop();
-      },
+      onTap: _handleBackButton,
       child: Container(
         width: 44,
         height: 44,
@@ -576,14 +573,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   Widget _buildLevelCompletionPopup() {
     return LevelCompletionPopup(
       level: currentLevel,
-      onNext: () {
-        setState(() {
-          showLevelCompletionPopup = false;
-          currentPuzzleIndex++;
-          currentLevel++;
-          _startGame();
-        });
-      },
+      onNext: _handleNextLevel,
     );
   }
 
@@ -740,6 +730,43 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _startGame();
   }
 
+  void _handleBackButton() {
+    _audioService.playClickSound();
+    
+    // Show interstitial ad with 100% probability before exiting
+    _interstitialAdService.showAdAlways(onAdDismissed: () {
+      // This callback runs after the ad is dismissed
+      Navigator.of(context).pop();
+    }).then((adShown) {
+      // If ad wasn't shown (ad not ready), exit immediately
+      if (!adShown) {
+        Navigator.of(context).pop();
+      }
+    });
+  }
+
+  void _handleNextLevel() {
+    // Show interstitial ad with 100% probability before going to next level
+    _interstitialAdService.showAdAlways(onAdDismissed: () {
+      // This callback runs after the ad is dismissed
+      setState(() {
+        showLevelCompletionPopup = false;
+        currentPuzzleIndex++;
+        currentLevel++;
+        _startGame();
+      });
+    }).then((adShown) {
+      // If ad wasn't shown (ad not ready), proceed immediately
+      if (!adShown) {
+        setState(() {
+          showLevelCompletionPopup = false;
+          currentPuzzleIndex++;
+          currentLevel++;
+          _startGame();
+        });
+      }
+    });
+  }
 
   void _handleSolution() async {
     if (currentPuzzleIndex == -1 || isLoadingSolutionAd) return;

@@ -217,12 +217,7 @@ class _AdBannerState extends State<AdBanner> {
       child: Container(
         width: double.infinity,
         height: widget.height ?? 60.0,
-        margin: const EdgeInsets.only(
-          left: 8.0,
-          right: 8.0,
-          top: 4.0,
-          bottom: 16.0,
-        ),
+        margin: EdgeInsets.zero,
         decoration: BoxDecoration(
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(4.0),
@@ -241,7 +236,7 @@ class _AdBannerState extends State<AdBanner> {
       return Container(
         width: double.infinity,
         height: widget.height ?? 60.0,
-        padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+        padding: EdgeInsets.zero,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(4.0),
           child: AdWidget(ad: _bannerAd!),
