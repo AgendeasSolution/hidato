@@ -74,6 +74,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _initializeServices();
     _initializeAnimations();
     _startGame();
+    
+    // Show entry ad after the first frame is rendered
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showEntryAd();
+    });
   }
 
   void _initializeServices() async {
@@ -84,7 +89,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _audioService = AudioService.instance;
     
     // Preload ads for better user experience
-    _interstitialAdService.preloadAd();
+    await _interstitialAdService.preloadAd();
     
     // Initialize rewarded ads and wait for them to be ready
     await _initializeRewardedAds();
@@ -765,6 +770,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           _startGame();
         });
       }
+    });
+  }
+
+  void _showEntryAd() {
+    // Show interstitial ad with 50% probability when entering game screen
+    _interstitialAdService.showAdWithCustomProbability(0.5, onAdDismissed: () {
+      // Ad was shown and dismissed - no action needed, game continues normally
+    }).then((adShown) {
+      // If ad wasn't shown (50% chance or ad not ready), game continues normally
     });
   }
 
