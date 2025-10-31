@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../constants/app_colors.dart';
@@ -33,9 +35,21 @@ class _AdBannerState extends State<AdBanner> {
   // Test ad unit ID for development
   static const String _testAdUnitId = 'ca-app-pub-3940256099942544/6300978111';
 
-  // Production ad unit ID from the AdMob console
-  static const String _productionAdUnitId =
-      'ca-app-pub-3772142815301617/5323782040';
+  // Production ad unit IDs from the AdMob console
+  static const String _productionAdUnitIdAndroid = 'ca-app-pub-3772142815301617/5323782040';
+  static const String _productionAdUnitIdIOS = 'ca-app-pub-3772142815301617/1038232615'; // TODO: Add iOS-specific ID when available
+
+  // Get the appropriate ad unit ID based on platform and environment
+  static String get _adUnitId {
+    // For production, use platform-specific IDs
+      if (Platform.isAndroid) {
+        return _productionAdUnitIdAndroid;
+      } else if (Platform.isIOS) {
+        return _productionAdUnitIdIOS;
+      }
+    // For development/testing, use test ad unit ID
+    return _productionAdUnitIdAndroid;
+  }
 
   @override
   void initState() {
@@ -106,7 +120,7 @@ class _AdBannerState extends State<AdBanner> {
 
     try {
       _bannerAd = BannerAd(
-        adUnitId: widget.adUnitId ?? _productionAdUnitId,
+        adUnitId: widget.adUnitId ?? _adUnitId,
         size: AdSize.banner,
         request: const AdRequest(),
         listener: BannerAdListener(

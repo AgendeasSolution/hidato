@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -17,12 +18,19 @@ class InterstitialAdService {
   /// Test ad unit ID for development
   static const String _testAdUnitId = 'ca-app-pub-3940256099942544/1033173712';
   
-  /// Production ad unit ID from AdMob console
-  static const String _productionAdUnitId = 'ca-app-pub-3772142815301617/1955931410';
+  /// Production ad unit IDs from AdMob console
+  static const String _productionAdUnitIdAndroid = 'ca-app-pub-3772142815301617/1955931410';
+  static const String _productionAdUnitIdIOS = 'ca-app-pub-3772142815301617/6098987609'; // TODO: Add iOS-specific ID when available
 
-  /// Current ad unit ID (using test for development)
-  /// Change to _productionAdUnitId for production
-  static const String _adUnitId = _productionAdUnitId;
+  /// Get the appropriate ad unit ID based on platform and environment
+  static String get _adUnitId {
+      if (Platform.isAndroid) {
+        return _productionAdUnitIdAndroid;
+      } else if (Platform.isIOS) {
+        return _productionAdUnitIdIOS;
+      }
+    return _productionAdUnitIdAndroid;
+  }
 
   /// Check if ad is ready to show
   bool get isAdReady => _isAdReady;
@@ -36,7 +44,7 @@ class InterstitialAdService {
 
     try {
       await InterstitialAd.load(
-        adUnitId: _adUnitId,
+        adUnitId: InterstitialAdService._adUnitId,
         request: const AdRequest(),
         adLoadCallback: InterstitialAdLoadCallback(
           onAdLoaded: (ad) {

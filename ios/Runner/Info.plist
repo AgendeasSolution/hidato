@@ -46,8 +46,12 @@
 		<true/>
 	</dict>
 	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3772142815301617~6576868556</string>
+	<string>ca-app-pub-3772142815301617~6818825292</string>
 	<key>UIRequiresFullScreen</key>
     <true/>
+	<key>UIDeviceFamily</key>
+    <array>
+        <integer>1</integer>
+    </array>
 </dict>
 </plist>

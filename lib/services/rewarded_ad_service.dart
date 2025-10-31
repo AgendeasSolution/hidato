@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -19,12 +20,21 @@ class RewardedAdService {
   /// Test ad unit ID for development
   static const String _testAdUnitId = 'ca-app-pub-3940256099942544/5224354917';
   
-  /// Production ad unit ID from AdMob console
-  static const String _productionAdUnitId = 'ca-app-pub-3772142815301617/7363282712';
+  /// Production ad unit IDs from AdMob console
+  static const String _productionAdUnitIdAndroid = 'ca-app-pub-3772142815301617/7363282712';
+  static const String _productionAdUnitIdIOS = 'ca-app-pub-3772142815301617/2189315144'; // TODO: Add iOS-specific ID when available
 
-  /// Current ad unit ID (using production for live app)
-  /// Change to _testAdUnitId for development/testing
-  static const String _adUnitId = _productionAdUnitId;
+  /// Get the appropriate ad unit ID based on platform and environment
+  static String get _adUnitId {
+    // For production, use platform-specific IDs
+      if (Platform.isAndroid) {
+        return _productionAdUnitIdAndroid;
+      } else if (Platform.isIOS) {
+        return _productionAdUnitIdIOS;
+      }
+    // For development/testing, use test ad unit ID
+    return _productionAdUnitIdAndroid;
+  }
 
   /// Check if ad is ready to show
   bool get isAdReady => _isAdReady;
@@ -50,14 +60,14 @@ class RewardedAdService {
 
     _isLoading = true;
     _isAdReady = false;
-    print('Loading rewarded ad with ID: $_adUnitId');
+    print('Loading rewarded ad with ID: ${RewardedAdService._adUnitId}');
 
     try {
       // Add a small delay to ensure AdMob is fully initialized
       await Future.delayed(const Duration(milliseconds: 500));
       
       await RewardedAd.load(
-        adUnitId: _adUnitId,
+        adUnitId: RewardedAdService._adUnitId,
         request: const AdRequest(),
         rewardedAdLoadCallback: RewardedAdLoadCallback(
           onAdLoaded: (ad) {
