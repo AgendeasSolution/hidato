@@ -17,7 +17,7 @@ class AudioService {
   static const String _blockSound = 'audio/block_2.mp3';
   static const String _clickSound = 'audio/mouse_click_5.mp3';
   static const String _winSound = 'audio/win_2.mp3';
-  static const String _moveSound = 'audio/move_7.mp3';
+  static const String _moveSound = 'audio/move_10.mp3';
   static const String _hintSound = 'audio/other_4.mp3';
 
   /// Initialize the audio service
